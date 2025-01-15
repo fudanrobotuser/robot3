@@ -57,7 +57,7 @@ static struct timespec apptime;
 #define TIMESPEC2NS(T) ((uint64_t)(T).tv_sec * NSEC_PER_SEC + (T).tv_nsec)
 const struct timespec cycletime = {0, PERIOD_NS};
 
-#define E_COUNT 7
+#define E_COUNT 1
 
 // EtherCAT
 static ec_master_t *master = NULL;
@@ -554,6 +554,9 @@ int main(int argc, char **argv)
    
 
     Igh_init();
+    // if(2>1){
+    //     return 0;
+    // }
     Igh_master_activate();
 
     pthread_t rt_thread;

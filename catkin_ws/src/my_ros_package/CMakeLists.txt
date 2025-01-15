@@ -36,6 +36,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   message_generation
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -245,3 +246,7 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+install(TARGETS publisher_node subscriber_node
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

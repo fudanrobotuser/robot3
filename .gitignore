@@ -4,4 +4,6 @@ dc_user/.libs
 dc_user/.deps
 catkin_ws/build
 catkin_ws/devel
+catkin_ws/install
 .vscode
+build/
