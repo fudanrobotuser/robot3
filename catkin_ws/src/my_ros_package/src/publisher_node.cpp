@@ -1,5 +1,7 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/Float32.h>
 #include <std_msgs/Int32.h>  // 用于接收 /action 的整型消息
 #include <pthread.h>
 #include <iostream>
@@ -24,10 +26,11 @@ vector<motor_data> Data;
 sensor_msgs::JointState joint_state;
 pthread_t thread1;
 
-ros::Publisher high_freq_pub; // 250Hz 的 Publisher
+ros::Publisher high_freq_pub;  // 250Hz 的 Publisher
 // 创建一个订阅者，订阅 /action 话题
 ros::Subscriber action_sub;
 ros::Timer high_freq_timer;
+ros::Subscriber motorCommandSubscriber_;
 
 // EtherCat线程读写实例
 void Ethercat_syncThread() {
@@ -79,6 +82,40 @@ void actionCallback(const std_msgs::Int32::ConstPtr& msg) {
   }
 }
 
+void motorCommandSubscriberCallback(const std_msgs::Float32MultiArray::ConstPtr& cmd_msg) {
+  // for (int i = 0; i < 12; i++) {
+    // cmd_msg.data[i * 5] = reference.motor_ref[i].target_postion;
+    // cmd_msg.data[i * 5 + 1] = reference.motor_ref[i].target_speed;
+    // cmd_msg.data[i * 5 + 2] = reference.motor_ref[i].target_torque;
+    // cmd_msg.data[i * 5 + 3] = reference.motor_ref[i].kp;
+    // cmd_msg.data[i * 5 + 4] = reference.motor_ref[i].kd;
+    // ROS_INFO("%f", cmd_msg->data[i * 5]);
+    // ROS_INFO("%f", cmd_msg->data[i * 5 + 1]);
+    // ROS_INFO("%f", cmd_msg->data[i * 5 + 2]);
+    // ROS_INFO("%f", cmd_msg->data[i * 5 + 3]);
+    // ROS_INFO("%f", cmd_msg->data[i * 5 + 4]);
+  // }
+  //阻抗模式
+  if (2 > 1) {
+    int i = 1;
+    Icmomond[i - 1].angle =   cmd_msg->data[i * 6];  
+    Icmomond[i - 1].velocity =cmd_msg->data[i * 6 + 1];
+    Icmomond[i - 1].torque =  cmd_msg->data[i * 6 + 2];
+    Icmomond[i - 1].KP =      cmd_msg->data[i * 6 + 3];
+    Icmomond[i - 1].KD =      cmd_msg->data[i * 6 + 4];
+    motors.Id_command(i, &Icmomond[i - 1]);  
+  }
+  if (2 > 1) {
+    int i = 2;
+    Icmomond[i - 1].angle =   cmd_msg->data[i * 6];  
+    Icmomond[i - 1].velocity =cmd_msg->data[i * 6 + 1];
+    Icmomond[i - 1].torque =  cmd_msg->data[i * 6 + 2];
+    Icmomond[i - 1].KP =      cmd_msg->data[i * 6 + 3];
+    Icmomond[i - 1].KD =      cmd_msg->data[i * 6 + 4];
+    motors.Id_command(i, &Icmomond[i - 1]);  
+  }
+}
+
 void highFreqCallback(const ros::TimerEvent& event) {
   joint_state.name.clear();
   joint_state.position.clear();
@@ -87,20 +124,20 @@ void highFreqCallback(const ros::TimerEvent& event) {
 
   // 设置 header
   joint_state.header.stamp = ros::Time::now();
-  joint_state.header.frame_id = "base_link";
+  joint_state.header.frame_id = "";
 
-  //读取电机数据并发布 joint_state
+  // 读取电机数据并发布 joint_state
   for (int i = 0; i < 12; i++) {
-      motors.Id_data(i + 1, &Data[i]);  // 读取电机数据到 Data
-      joint_state.name.push_back("joint" + std::to_string(i));
-      joint_state.position.push_back(Data[i].angle);
-      joint_state.velocity.push_back(Data[i].velocity);
-      joint_state.effort.push_back(Data[i].torque);
+    motors.Id_data(i + 1, &Data[i]);  // 读取电机数据到 Data
+    joint_state.name.push_back("joint" + std::to_string(i));
+    joint_state.position.push_back(Data[i].angle);
+    joint_state.velocity.push_back(Data[i].velocity);
+    joint_state.effort.push_back(Data[i].torque);
+    joint_state.header.frame_id += "_"+std::to_string(Data[i].state);
   }
 
   high_freq_pub.publish(joint_state);
 }
-
 
 int main(int argc, char** argv) {
   // 初始化电机控制指令和电机数据
@@ -109,10 +146,6 @@ int main(int argc, char** argv) {
   Pcmomond.resize(motors._motor_num);
   Data.resize(motors._motor_num);
 
-  // 读取电机数据
-  // motors.Id_data(15, &Data[15 - 1]);
-  // motors.Id_data(14, &Data[14 - 1]);
-  // motors.Id_data(13, &Data[13 - 1]);
   motors.print_Ecat_id_info();
   // 开启电机通信线程
   std::thread rcv_thread1 = std::thread(&Ethercat_syncThread);
@@ -123,6 +156,7 @@ int main(int argc, char** argv) {
   high_freq_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 10);
   // 创建一个订阅者，订阅 /action 话题
   action_sub = nh.subscribe("/action_motor1", 10, actionCallback);
+  motorCommandSubscriber_ = nh.subscribe("/motor_command", 10, motorCommandSubscriberCallback);
   high_freq_timer = nh.createTimer(ros::Duration(1.0 / 250.0), highFreqCallback);
 
   ros::spin();
