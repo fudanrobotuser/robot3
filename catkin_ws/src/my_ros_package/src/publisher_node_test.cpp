@@ -14,7 +14,7 @@
 #include "my_ros_package/MotorCmd.h"
 #include <sensor_msgs/JointState.h>
 
-int idxChanged[15] = {6, 5, 4, 3, 2, 1, 12, 11, 10, 9, 8, 7, 13, 14, 15};
+int idxChanged[15] = {6, 5, 4,3,2,1 , 12, 11, 10, 9 , 8 , 7, 13, 14, 15};
 
 bool isAllMotorEnabled = false;
 using namespace ETHERCAT_SPACE;
@@ -135,42 +135,48 @@ void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
     }
   }
 }
-
+std_msgs::Float32MultiArray::ConstPtr latest_motor_command_msg;  // 用于存储最新的 motor_command 消息
+ros::Timer motor_command_timer;
 void motor_command_callback(const std_msgs::Float32MultiArray::ConstPtr& cmd_msg) {
-  // for (int i = 0; i < 12; i++) {
-  // cmd_msg.data[i * 5] = reference.motor_ref[i].target_postion;
-  // cmd_msg.data[i * 5 + 1] = reference.motor_ref[i].target_speed;
-  // cmd_msg.data[i * 5 + 2] = reference.motor_ref[i].target_torque;
-  // cmd_msg.data[i * 5 + 3] = reference.motor_ref[i].kp;
-  // cmd_msg.data[i * 5 + 4] = reference.motor_ref[i].kd;
-  // ROS_INFO("%f", cmd_msg->data[i * 5]);
-  // ROS_INFO("%f", cmd_msg->data[i * 5 + 1]);
-  // ROS_INFO("%f", cmd_msg->data[i * 5 + 2]);
-  // ROS_INFO("%f", cmd_msg->data[i * 5 + 3]);
-  // ROS_INFO("%f", cmd_msg->data[i * 5 + 4]);
-  // }
-  // 阻抗模式
+  latest_motor_command_msg = cmd_msg;  // 仅更新，不执行处理
+}
+
+// 1000Hz 定时器回调函数，处理 motor_command
+void motor_command_timer_callback(const ros::TimerEvent& event) {
+  if (!latest_motor_command_msg) return;  // 没有接收到数据时，直接返回
+
   if (isAllMotorEnabled) {
     if (2 > 1) {
       int i = 6;
-      int ii = idxChanged[i - 1];
+      int ii = idxChanged[i-1];
 
-      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
-      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
-      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
-      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
-      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      Icmomond[ii - 1].angle = cmd_msg->data[ (i-1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i-1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i-1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i-1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i-1)* 6 + 4];
       motors.Id_command(ii, &Icmomond[ii - 1]);
     }
     if (2 > 1) {
       int i = 5;
-      int ii = idxChanged[i - 1];
+      int ii = idxChanged[i-1];
 
-      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
-      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
-      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
-      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
-      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      Icmomond[ii - 1].angle = cmd_msg->data[ (i-1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i-1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i-1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i-1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i-1)* 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 4;
+      int ii = idxChanged[i-1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[ (i-1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i-1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i-1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i-1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i-1)* 6 + 4];
       motors.Id_command(ii, &Icmomond[ii - 1]);
     }
   }
@@ -181,11 +187,11 @@ void motor_feedback_timer_callback(const ros::TimerEvent& event) {
   array_msg.data.resize(36);
 
   for (int i = 0; i < 12; i++) {
-    int ii = idxChanged[i] - 1;
+    int ii = idxChanged[i]-1;
     motors.Id_data(ii + 1, &Data[ii]);  // 读取电机数据到 Data
-    array_msg.data[i * 3] = Data[ii].angle;
-    array_msg.data[i * 3 + 1] = Data[ii].velocity;
-    array_msg.data[i * 3 + 2] = Data[ii].torque;
+    array_msg.data[ii * 3] = Data[ii].angle;
+    array_msg.data[ii * 3 + 1] = Data[ii].velocity;
+    array_msg.data[ii * 3 + 2] = Data[ii].torque;
   }
   motor_feedback_pub.publish(array_msg);
 }
@@ -208,7 +214,9 @@ int main(int argc, char** argv) {
   // 创建一个订阅者，订阅 /action 话题
   motor_action_sub = nh.subscribe("/motor_action", 1, motor_action_callback);
   motor_command_sub = nh.subscribe("/motor_command", 1, motor_command_callback);
-  motor_feedback_timer = nh.createTimer(ros::Duration(1.0 / 250.0), motor_feedback_timer_callback);
+  motor_command_timer = nh.createTimer(ros::Duration(1.0 / 1000.0), motor_command_timer_callback);
+  motor_feedback_timer = nh.createTimer(ros::Duration(1.0 / 1000.0), motor_feedback_timer_callback);
+
 
   ros::spin();
   // 等待线程结束
