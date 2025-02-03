@@ -1,14 +1,6 @@
 /**
- * 基于 ethercat igh example dc_user 例子改写的 伺服控制器
- * 功能为:
- *  1 igh 主站配置
- *  2 伺服状态机切换
- *  3 伺服位置写入
- *  4 伺服状态反馈
- * @date 20240609
- * @author wei1224hf@gmail.com
- * @version beta.1
- * ****************************/
+ * 控制左臂.7个电机
+*/
 #include <stdbool.h>
 #include "ecrt.h"
 #include <stdio.h>
@@ -54,18 +46,10 @@ static struct timespec apptime;
 #define TIMESPEC2NS(T) ((uint64_t)(T).tv_sec * NSEC_PER_SEC + (T).tv_nsec)
 const struct timespec cycletime = {0, PERIOD_NS};
 
-#define E_START 2
-#define E_STOP 2
-
 #define E_START2 0
-#define E_STOP2 0
+#define E_STOP2 6
 
 // EtherCAT
-static ec_master_t* master = NULL;
-static ec_master_state_t master_state = {};
-static ec_domain_t* domain1 = NULL;
-static ec_domain_state_t domain1_state = {};
-
 static ec_master_t* master2 = NULL;
 static ec_master_state_t master_state2 = {};
 static ec_domain_t* domain2 = NULL;
@@ -107,181 +91,7 @@ static unsigned int touch_probe_pos2;
 static unsigned int digital_input;
 
 bool running_thread = true;
-bool isAllEnabled = false;
 bool isAllEnabled2 = false;
-
-// 伺服电机所有属性结构体,用于读取值的位置指针
-static struct
-{
-  unsigned int ctrl_word;
-  unsigned int target_position;
-  unsigned int target_torque;
-  unsigned int target_velocity;
-  unsigned int max_torque;
-  unsigned int DO;
-  unsigned int DI;
-  unsigned int act_DI;
-
-  unsigned int offset_velocity;
-  unsigned int offset_torque;
-  unsigned int offset_position;
-
-  unsigned int error_code;
-  unsigned int status_word;
-  unsigned int act_position;
-  unsigned int act_torque;
-
-  unsigned int disp_mode;
-  unsigned int actual_ferr;
-  unsigned int probe_status;
-  unsigned int probe1_pos;
-
-  unsigned int probe2_pos;
-  unsigned int act_velocity;
-  unsigned int mode_Of_Operation;
-  unsigned int mode_Of_Operation_dsiplay;
-} offset[E_STOP + 1];
-
-struct {
-  int defaultPosition = 0;
-  int target_postion = 0;
-  bool isInitedToDefault = false;
-  bool isEnabled = false;
-  uint16_t statusOld = 0;
-  int statusDeCount = 5;
-  int last_position = 0;
-  int act_position = 0;
-  int act_torque = 0;
-  int act_velocity = 0;
-  int act_wrong = 0;
-} motorData[E_STOP + 1];
-
-const static ec_pdo_entry_reg_t domain1_regs[] = {
-#if E_START <= 0 && E_STOP >= 0
-    {0, 0, VidPid, 0x6040, 0, &offset[0].ctrl_word},
-    {0, 0, VidPid, 0x6071, 0, &offset[0].target_torque},
-    {0, 0, VidPid, 0x607a, 0, &offset[0].target_position},
-    {0, 0, VidPid, 0x60ff, 0, &offset[0].target_velocity},
-
-    {0, 0, VidPid, 0x6041, 0, &offset[0].status_word},
-    {0, 0, VidPid, 0x6064, 0, &offset[0].act_position},
-    {0, 0, VidPid, 0x606c, 0, &offset[0].act_velocity},
-    {0, 0, VidPid, 0x6077, 0, &offset[0].act_torque},
-    {0, 0, VidPid, 0x6061, 0, &offset[0].mode_Of_Operation_dsiplay},
-#endif
-#if E_START <= 1 && E_STOP >= 1
-    {0, 1, VidPid, 0x6040, 0, &offset[1].ctrl_word},
-    {0, 1, VidPid, 0x6071, 0, &offset[1].target_torque},
-    {0, 1, VidPid, 0x607a, 0, &offset[1].target_position},
-    {0, 1, VidPid, 0x60ff, 0, &offset[1].target_velocity},
-
-    {0, 1, VidPid, 0x6041, 0, &offset[1].status_word},
-    {0, 1, VidPid, 0x6064, 0, &offset[1].act_position},
-    {0, 1, VidPid, 0x606c, 0, &offset[1].act_velocity},
-    {0, 1, VidPid, 0x6077, 0, &offset[1].act_torque},
-    {0, 1, VidPid, 0x6061, 0, &offset[1].mode_Of_Operation_dsiplay},
-#endif
-#if E_START <= 2 && E_STOP >= 2
-    {0, 2, VidPid, 0x6040, 0, &offset[2].ctrl_word},
-    {0, 2, VidPid, 0x6071, 0, &offset[2].target_torque},
-    {0, 2, VidPid, 0x607a, 0, &offset[2].target_position},
-    {0, 2, VidPid, 0x60ff, 0, &offset[2].target_velocity},
-
-    {0, 2, VidPid, 0x6041, 0, &offset[2].status_word},
-    {0, 2, VidPid, 0x6064, 0, &offset[2].act_position},
-    {0, 2, VidPid, 0x606c, 0, &offset[2].act_velocity},
-    {0, 2, VidPid, 0x6077, 0, &offset[2].act_torque},
-    {0, 2, VidPid, 0x6061, 0, &offset[2].mode_Of_Operation_dsiplay},
-#endif
-#if E_START <= 3 && E_STOP >= 3
-    {0, 3, VidPid, 0x6040, 0, &offset[3].ctrl_word},
-    {0, 3, VidPid, 0x6071, 0, &offset[3].target_torque},
-    {0, 3, VidPid, 0x607a, 0, &offset[3].target_position},
-    {0, 3, VidPid, 0x60ff, 0, &offset[3].target_velocity},
-
-    {0, 3, VidPid, 0x6041, 0, &offset[3].status_word},
-    {0, 3, VidPid, 0x6064, 0, &offset[3].act_position},
-    {0, 3, VidPid, 0x606c, 0, &offset[3].act_velocity},
-    {0, 3, VidPid, 0x6077, 0, &offset[3].act_torque},
-    {0, 3, VidPid, 0x6061, 0, &offset[3].mode_Of_Operation_dsiplay},
-#endif
-#if E_START <= 4 && E_STOP >= 4
-    {0, 4, VidPid, 0x6040, 0, &offset[4].ctrl_word},
-    {0, 4, VidPid, 0x6071, 0, &offset[4].target_torque},
-    {0, 4, VidPid, 0x607a, 0, &offset[4].target_position},
-    {0, 4, VidPid, 0x60ff, 0, &offset[4].target_velocity},
-
-    {0, 4, VidPid, 0x6041, 0, &offset[4].status_word},
-    {0, 4, VidPid, 0x6064, 0, &offset[4].act_position},
-    {0, 4, VidPid, 0x606c, 0, &offset[4].act_velocity},
-    {0, 4, VidPid, 0x6077, 0, &offset[4].act_torque},
-    {0, 4, VidPid, 0x6061, 0, &offset[4].mode_Of_Operation_dsiplay},
-#endif
-#if E_START <= 5 && E_STOP >= 5
-    {0, 5, VidPid, 0x6040, 0, &offset[5].ctrl_word},
-    {0, 5, VidPid, 0x6071, 0, &offset[5].target_torque},
-    {0, 5, VidPid, 0x607a, 0, &offset[5].target_position},
-    {0, 5, VidPid, 0x60ff, 0, &offset[5].target_velocity},
-
-    {0, 5, VidPid, 0x6041, 0, &offset[5].status_word},
-    {0, 5, VidPid, 0x6064, 0, &offset[5].act_position},
-    {0, 5, VidPid, 0x606c, 0, &offset[5].act_velocity},
-    {0, 5, VidPid, 0x6077, 0, &offset[5].act_torque},
-    {0, 5, VidPid, 0x6061, 0, &offset[5].mode_Of_Operation_dsiplay},
-#endif
-#if E_START <= 6 && E_STOP >= 6
-    {0, 6, VidPid, 0x6040, 0, &offset[6].ctrl_word},
-    {0, 6, VidPid, 0x6071, 0, &offset[6].target_torque},
-    {0, 6, VidPid, 0x607a, 0, &offset[6].target_position},
-    {0, 6, VidPid, 0x60ff, 0, &offset[6].target_velocity},
-
-    {0, 6, VidPid, 0x6041, 0, &offset[6].status_word},
-    {0, 6, VidPid, 0x6064, 0, &offset[6].act_position},
-    {0, 6, VidPid, 0x606c, 0, &offset[6].act_velocity},
-    {0, 6, VidPid, 0x6077, 0, &offset[6].act_torque},
-    {0, 6, VidPid, 0x6061, 0, &offset[6].mode_Of_Operation_dsiplay},
-#endif
-
-#if E_START <= 7 && E_STOP >= 7
-    {0, 7, VidPid, 0x6040, 0, &offset[7].ctrl_word},
-    {0, 7, VidPid, 0x6071, 0, &offset[7].target_torque},
-    {0, 7, VidPid, 0x607a, 0, &offset[7].target_position},
-    {0, 7, VidPid, 0x60ff, 0, &offset[7].target_velocity},
-
-    {0, 7, VidPid, 0x6041, 0, &offset[7].status_word},
-    {0, 7, VidPid, 0x6064, 0, &offset[7].act_position},
-    {0, 7, VidPid, 0x606c, 0, &offset[7].act_velocity},
-    {0, 7, VidPid, 0x6077, 0, &offset[7].act_torque},
-    {0, 7, VidPid, 0x6061, 0, &offset[7].mode_Of_Operation_dsiplay},
-#endif
-
-#if E_START <= 8 && E_STOP >= 8
-    {0, 8, VidPid, 0x6040, 0, &offset[8].ctrl_word},
-    {0, 8, VidPid, 0x6071, 0, &offset[8].target_torque},
-    {0, 8, VidPid, 0x607a, 0, &offset[8].target_position},
-    {0, 8, VidPid, 0x60ff, 0, &offset[8].target_velocity},
-
-    {0, 8, VidPid, 0x6041, 0, &offset[8].status_word},
-    {0, 8, VidPid, 0x6064, 0, &offset[8].act_position},
-    {0, 8, VidPid, 0x606c, 0, &offset[8].act_velocity},
-    {0, 8, VidPid, 0x6077, 0, &offset[8].act_torque},
-    {0, 8, VidPid, 0x6061, 0, &offset[8].mode_Of_Operation_dsiplay},
-#endif
-
-    // #if E_COUNT>X
-    //     {0, XXX, VidPid, 0x6040, 0, &offset[XXX].ctrl_word},
-    //     {0, XXX, VidPid, 0x6071, 0, &offset[XXX].target_torque},
-    //     {0, XXX, VidPid, 0x607a, 0, &offset[XXX].target_position},
-    //     {0, XXX, VidPid, 0x60ff, 0, &offset[XXX].target_velocity},
-
-    //     {0, XXX, VidPid, 0x6041, 0, &offset[XXX].status_word},
-    //     {0, XXX, VidPid, 0x6064, 0, &offset[XXX].act_position},
-    //     {0, XXX, VidPid, 0x606c, 0, &offset[XXX].act_velocity},
-    //     {0, XXX, VidPid, 0x6077, 0, &offset[XXX].act_torque},
-    //     {0, XXX, VidPid, 0x6061, 0, &offset[XXX].mode_Of_Operation_dsiplay},
-    // #endif
-    ////
-    {}};
 
 static struct
 {
@@ -461,34 +271,6 @@ struct timespec timespec_add(struct timespec time1, struct timespec time2) {
 
 /*****************************************************************************/
 
-void check_domain1_state(void) {
-  ec_domain_state_t ds;
-  ecrt_domain_state(domain1, &ds);
-  if (ds.working_counter != domain1_state.working_counter)
-    printf("Domain1: WC %u.\n", ds.working_counter);
-  if (ds.wc_state != domain1_state.wc_state)
-    printf("Domain1: State %u.\n", ds.wc_state);
-
-  domain1_state = ds;
-}
-
-void Igh_rechekTime() {
-  clock_gettime(CLOCK_TO_USE, &apptime);
-
-  ecrt_master_application_time(master, TIMESPEC2NS(apptime));
-  if (sync_ref_counter) {
-    sync_ref_counter--;
-  } else {
-    sync_ref_counter = 1;                      // sync every cycle
-    ecrt_master_sync_reference_clock(master);  // DC reference clock drift compensation
-  }
-  ecrt_master_sync_slave_clocks(master);  // DC clock drift compensation
-  // queue process data
-  ecrt_domain_queue(domain1);
-  // send EtherCAT data
-  ecrt_master_send(master);
-}
-
 void Igh_rechekTime2() {
   clock_gettime(CLOCK_TO_USE, &apptime);
 
@@ -504,64 +286,6 @@ void Igh_rechekTime2() {
   ecrt_domain_queue(domain2);
   // send EtherCAT data
   ecrt_master_send(master2);
-}
-
-void readWriteStatus() {
-  int i2;
-  isAllEnabled = true;
-  ecrt_master_receive(master);
-  ecrt_domain_process(domain1);
-
-  for (i2 = E_START; i2 <= E_STOP; i2++) {
-    uint16_t ss = EC_READ_U16(domain1_pd + offset[i2].status_word);
-    if (motorData[i2].statusOld != ss) {
-      if ((ss == 0x1237 && motorData[i2].statusOld == 0x0237) || (ss == 0x0237 && motorData[i2].statusOld == 0x1237)) {
-        // NO PRINT
-      } else {
-        printf("status %d : 0x%04x to 0x%04x  \n", i2, motorData[i2].statusOld, ss);
-      }
-
-      motorData[i2].statusOld = ss;
-      motorData[i2].statusDeCount = 5;
-    }
-
-    // 电机未使能,则执行状态机切换
-    if ((ss & 0xFF) != 0x37) {
-      motorData[i2].isEnabled = false;
-      if (motorData[i2].statusDeCount == 5) {
-        if ((ss & 0xFF) == 0x50) {
-          EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x06);
-        } else if ((ss & 0xFF) == 0x31) {
-          motorData[i2].last_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
-          motorData[i2].target_postion = motorData[i2].last_position;
-          EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].last_position);
-          EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x07);
-        } else if ((ss & 0xFF) == 0x21) {
-          motorData[i2].last_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
-          motorData[i2].target_postion = motorData[i2].last_position;
-          EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].last_position);
-          EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x07);
-        } else if ((ss & 0xFF) == 0x33) {
-          motorData[i2].last_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
-          motorData[i2].target_postion = motorData[i2].last_position;
-          EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].last_position);
-          EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x0F);
-        }
-      }
-      if (motorData[i2].statusDeCount <= 0) {
-        motorData[i2].statusDeCount = 5;
-      } else {
-        motorData[i2].statusDeCount--;
-      }
-    } else {
-      motorData[i2].isEnabled = true;
-    }
-  }
-
-  // 判断所有电机都使能
-  for (i2 = E_START; i2 <= E_STOP; i2++) {
-    isAllEnabled = (isAllEnabled && motorData[i2].isEnabled);
-  }
 }
 
 void readWriteStatus2() {
@@ -623,40 +347,6 @@ void readWriteStatus2() {
   }
 }
 
-void readWritePDO() {
-  int i2 = 0;
-
-  ecrt_master_receive(master);
-  ecrt_domain_process(domain1);
-
-  for (i2 = E_START; i2 <= E_STOP; i2++) {
-    uint16_t ss = EC_READ_U16(domain1_pd + offset[i2].status_word);
-    if ((ss & 0xFF) == 0x37) {
-      motorData[i2].act_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
-      motorData[i2].last_position = motorData[i2].act_position;
-      motorData[i2].act_velocity = EC_READ_S32(domain1_pd + offset[i2].act_velocity);
-      motorData[i2].act_torque = EC_READ_S16(domain1_pd + offset[i2].act_torque);
-
-      if (motorData[i2].isInitedToDefault == false) {
-        if (motorData[i2].last_position > motorData[i2].defaultPosition + 80) {
-          motorData[i2].target_postion = motorData[i2].target_postion - 120;
-        } else if (motorData[i2].last_position < motorData[i2].defaultPosition - 80) {
-          motorData[i2].target_postion = motorData[i2].target_postion + 120;
-        } else {
-          motorData[i2].isInitedToDefault = true;
-        }
-        printf("position + %d,  %d to %d  \n", i2, motorData[i2].last_position, motorData[i2].target_postion);
-        EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].target_postion);
-      } else {
-        printf("isInitedToDefault + %d  \n", i2);
-      }
-    } else {
-      // uint16_t wrong = EC_READ_U16(domain1_pd + offset[i2].status_word);
-      printf("wrong status %d  \n", ss);
-    }
-  }
-}
-
 void readWritePDO2() {
   int i2 = 0;
 
@@ -702,32 +392,15 @@ void* rt_thread_function(void* arg) {
     wakeupTime = timespec_add(wakeupTime, cycletime);
     clock_nanosleep(CLOCK_TO_USE, TIMER_ABSTIME, &wakeupTime, NULL);
 
-    // if (!isAllEnabled) {
-    //   readWriteStatus();
-    // } else 
     if (!isAllEnabled2) {
       readWriteStatus2();
     } else {
-      // readWritePDO();
       readWritePDO2();
     }
 
-    // Igh_rechekTime();
     Igh_rechekTime2();
   }
   return NULL;
-}
-
-void Igh_master_activate() {
-  printf("......Activating master......\n");
-  if (ecrt_master_activate(master)) {
-    exit(EXIT_FAILURE);
-  }
-  if (!(domain1_pd = ecrt_domain_data(domain1))) {
-    exit(EXIT_FAILURE);
-  }
-
-  printf("......Master  Activated.......\n");
 }
 
 void Igh_master_activate2() {
@@ -743,68 +416,6 @@ void Igh_master_activate2() {
 }
 
 /****************************************************************************/
-
-void Igh_init() {
-  ec_master_info_t master_info;
-  ec_slave_info_t slave_info;
-  int ret;
-  int slavecnt;
-  ec_slave_config_t* sc;
-
-  // uint32_t  abort_code;
-  // size_t rb;
-  int ii = 0;
-  master = ecrt_request_master(0);
-  if (!master) {
-    exit(EXIT_FAILURE);
-  }
-
-  domain1 = ecrt_master_create_domain(master);
-  if (!domain1) {
-    exit(EXIT_FAILURE);
-  }
-
-  //---------get master / salve info----------------------
-  ret = ecrt_master(master, &master_info);
-  slavecnt = master_info.slave_count;
-  printf("ret = %d, slavecnt = %d, apptime = %" PRIu64 "\n", ret, master_info.slave_count, master_info.app_time);
-  ret = ecrt_master_get_slave(master, 0, &slave_info);
-  printf("ret = %d,spos = %d, pcode = %d\n", ret, slave_info.position, slave_info.product_code);
-
-  //---------end get master / salve info----------------------
-
-  for (ii = E_START; ii <= E_STOP; ii++) {
-    printf("servo %d  begin init! \n", ii);
-    ec_slave_config_t* sc;
-    if (!(sc = ecrt_master_slave_config(master, 0, ii, VidPid))) {
-      fprintf(stderr, "Failed to get slave configuration for Igh.\n");
-      exit(EXIT_FAILURE);
-    }
-
-    printf("Configuring PDOs... %d \n", ii);
-    if (ecrt_slave_config_pdos(sc, EC_END, Igh_syncs)) {
-      fprintf(stderr, "Failed to configure Igh PDOs.\n");
-      exit(EXIT_FAILURE);
-    }
-
-    ecrt_slave_config_sdo16(sc, 0x6040, 0, 6);  // 清错
-    sleep(1);
-    ecrt_slave_config_sdo16(sc, 0x6040, 0, 128);
-    sleep(1);
-
-    ecrt_slave_config_sdo16(sc, 0x1C32, 1, 2);  // set output synchronization triggered by  sync0 event DC mode
-    ecrt_slave_config_sdo16(sc, 0x1C33, 1, 2);  // set input  synchronization triggered by  sync1 evnent DC mode
-    ecrt_slave_config_sdo8(sc, 0x60c2, 1, (1000 / TASK_FREQUENCY));
-    ecrt_slave_config_sdo8(sc, 0x60c2, 2, -3);
-    ecrt_slave_config_sdo8(sc, 0x6060, 0, 8);
-    ecrt_slave_config_dc(sc, 0x0300, PERIOD_NS, PERIOD_NS / 2, 0, 0);
-  }
-
-  if (ecrt_domain_reg_pdo_entry_list(domain1, domain1_regs)) {
-    fprintf(stderr, "PDO entry registration failed!\n");
-    exit(EXIT_FAILURE);
-  }
-}
 
 void Igh_init2() {
   ec_master_info_t master_info;
@@ -849,9 +460,11 @@ void Igh_init2() {
       exit(EXIT_FAILURE);
     }
 
-    ecrt_slave_config_sdo16(sc, 0x6040, 0, 6);  // 清错
+    ecrt_slave_config_sdo16(sc, 0x6040, 0, 7);  // 下使能
     sleep(1);
-    ecrt_slave_config_sdo16(sc, 0x6040, 0, 128);
+    ecrt_slave_config_sdo16(sc, 0x6040, 0, 6);  // 下使能
+    sleep(1);    
+    ecrt_slave_config_sdo16(sc, 0x6040, 0, 128);// 清错
     sleep(1);
 
     ecrt_slave_config_sdo16(sc, 0x1C32, 1, 2);  // set output synchronization triggered by  sync0 event DC mode
@@ -869,9 +482,7 @@ void Igh_init2() {
 }
 
 int main(int argc, char** argv) {
-  // Igh_init();
   Igh_init2();
-  // Igh_master_activate();
   Igh_master_activate2();
 
   pthread_t rt_thread;
