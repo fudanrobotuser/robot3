@@ -18,6 +18,7 @@ int idxChanged[15] = {6, 5, 4, 3, 2, 1, 12, 11, 10, 9, 8, 7, 13, 14, 15};
 
 bool isAllMotorEnabled = false;
 using namespace ETHERCAT_SPACE;
+std::atomic<bool> stop_thread(false);  // 退出标志
 
 Ecat_motor motors("enp7s0", 1000, 15);
 
@@ -37,7 +38,7 @@ ros::Subscriber motor_command_sub;
 
 // EtherCat线程读写实例
 void Ethercat_syncThread() {
-  while (1) {
+  while (!stop_thread) {       // 检查退出标志
     motors.rt_ethercat_run();  // 程序内部包含与从站线程周期同步，此函数处理时间约300Us左右
   }
 }
@@ -63,26 +64,26 @@ void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
     // 设置腰部电机  进入位置模式
     motors.Id_data(15, &Data[15 - 1]);
     Pcmomond[15 - 1].angle = Data[15 - 1].angle;  // 目标位置
-    Pcmomond[15 - 1].Vkp = 3;                     // 位置环比例增益
-    Pcmomond[15 - 1].Vki = 700;                   // 位置环积分增益
-    Pcmomond[15 - 1].KP = 1;                      // 刚度
-    Pcmomond[15 - 1].KD = 0;                      // 阻尼
+    Pcmomond[15 - 1].Vkp = 5;                     // 位置环比例增益
+    Pcmomond[15 - 1].Vki = 500;                   // 位置环积分增益
+    Pcmomond[15 - 1].KP = 10;                      // 刚度
+    Pcmomond[15 - 1].KD = 1.0;                      // 阻尼
     motors.Id_command(15, &Pcmomond[15 - 1]);     // 发送控制指令
 
     motors.Id_data(14, &Data[14 - 1]);
     Pcmomond[14 - 1].angle = Data[14 - 1].angle;  // 目标位置
-    Pcmomond[14 - 1].Vkp = 3;                     // 位置环比例增益
-    Pcmomond[14 - 1].Vki = 700;                   // 位置环积分增益
-    Pcmomond[14 - 1].KP = 1;                      // 刚度
-    Pcmomond[14 - 1].KD = 0;                      // 阻尼
+    Pcmomond[14 - 1].Vkp = 5;                     // 位置环比例增益
+    Pcmomond[14 - 1].Vki = 500;                   // 位置环积分增益
+    Pcmomond[14 - 1].KP = 10;                      // 刚度
+    Pcmomond[14 - 1].KD = 1.0;                      // 阻尼
     motors.Id_command(14, &Pcmomond[14 - 1]);     // 发送控制指令
 
     motors.Id_data(13, &Data[13 - 1]);
     Pcmomond[13 - 1].angle = Data[13 - 1].angle;  // 目标位置
-    Pcmomond[13 - 1].Vkp = 3;                     // 位置环比例增益
-    Pcmomond[13 - 1].Vki = 700;                   // 位置环积分增益
-    Pcmomond[13 - 1].KP = 1;                      // 刚度
-    Pcmomond[13 - 1].KD = 0;                      // 阻尼
+    Pcmomond[13 - 1].Vkp = 5;                     // 位置环比例增益
+    Pcmomond[13 - 1].Vki = 500;                   // 位置环积分增益
+    Pcmomond[13 - 1].KP = 10;                      // 刚度
+    Pcmomond[13 - 1].KD = 1.0;                      // 阻尼
     motors.Id_command(13, &Pcmomond[13 - 1]);     // 发送控制指令
     ROS_INFO("3 Motor  set to position mode.");
   } else if (action_value == 3) {
@@ -161,9 +162,121 @@ void motor_command_callback(const std_msgs::Float32MultiArray::ConstPtr& cmd_msg
       Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
       Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
       motors.Id_command(ii, &Icmomond[ii - 1]);
+      //cout << ii-1 << "   " << i-1 <<"    " <<  Icmomond[ii - 1].angle << endl;
     }
     if (2 > 1) {
       int i = 5;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 4;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 3;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 2;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 1;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 12;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+      //cout << ii-1 << "   " << i-1 <<"    " <<  Icmomond[ii - 1].angle << endl;
+    }
+    if (2 > 1) {
+      int i = 11;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 10;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 9;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 8;
+      int ii = idxChanged[i - 1];
+
+      Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
+      Icmomond[ii - 1].velocity = cmd_msg->data[(i - 1) * 6 + 1];
+      Icmomond[ii - 1].torque = cmd_msg->data[(i - 1) * 6 + 2];
+      Icmomond[ii - 1].KP = cmd_msg->data[(i - 1) * 6 + 3];
+      Icmomond[ii - 1].KD = cmd_msg->data[(i - 1) * 6 + 4];
+      motors.Id_command(ii, &Icmomond[ii - 1]);
+    }
+    if (2 > 1) {
+      int i = 7;
       int ii = idxChanged[i - 1];
 
       Icmomond[ii - 1].angle = cmd_msg->data[(i - 1) * 6];
@@ -211,6 +324,10 @@ int main(int argc, char** argv) {
   motor_feedback_timer = nh.createTimer(ros::Duration(1.0 / 250.0), motor_feedback_timer_callback);
 
   ros::spin();
+  ros::shutdown();
+
+  // 设置退出标志并等待线程结束
+  stop_thread = true;
   // 等待线程结束
   rcv_thread1.join();
 
