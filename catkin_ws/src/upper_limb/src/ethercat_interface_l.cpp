@@ -20,7 +20,6 @@ static ec_domain_state_t domain1_state = {};
 uint8_t* domain1_pd = NULL;
 
 
-
 // ethercat 电机内部功能所对应的地址偏移量
 static struct
 {
@@ -92,7 +91,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 1, VidPid, 0x6064, 0, &offset[1].act_position},
     {0, 1, VidPid, 0x606c, 0, &offset[1].act_velocity},
     {0, 1, VidPid, 0x6077, 0, &offset[1].act_torque},
-    {0, 2, VidPid, 0x603f, 0, &offset[2].error_code},
+    {0, 1, VidPid, 0x603f, 0, &offset[1].error_code},
     {0, 1, VidPid, 0x6061, 0, &offset[1].mode_Of_Operation_dsiplay},
 #endif
 #if E_START <= 2 && E_STOP >= 2
@@ -452,9 +451,6 @@ void Igh_init() {
   int slavecnt;
   ec_slave_config_t* sc;
 
-  // uint32_t  abort_code;
-  // size_t rb;
-  int ii = 0;
   master = ecrt_request_master(E_MASTER);
   if (!master) {
     exit(EXIT_FAILURE);
@@ -474,7 +470,7 @@ void Igh_init() {
 
   //---------end get master / salve info----------------------
 
-  for (ii = E_START; ii <= E_STOP; ii++) {
+  for (int ii = E_START; ii <= E_STOP; ii++) {
     printf("servo %d  begin init! \n", ii);
     ec_slave_config_t* sc;
     if (!(sc = ecrt_master_slave_config(master, 0, ii, VidPid))) {

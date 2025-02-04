@@ -96,7 +96,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 1, VidPid, 0x6064, 0, &offset[1].act_position},
     {0, 1, VidPid, 0x606c, 0, &offset[1].act_velocity},
     {0, 1, VidPid, 0x6077, 0, &offset[1].act_torque},
-    {0, 2, VidPid, 0x603f, 0, &offset[2].error_code},
+    {0, 1, VidPid, 0x603f, 0, &offset[1].error_code},
     {0, 1, VidPid, 0x6061, 0, &offset[1].mode_Of_Operation_dsiplay},
 #endif
 #if E_START <= 2 && E_STOP >= 2

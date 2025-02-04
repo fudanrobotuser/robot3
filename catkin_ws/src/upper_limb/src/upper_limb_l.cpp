@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
     Igh_init();
     Igh_master_activate();
 
-    ros::init(argc, argv, "upper_limb");
+    ros::init(argc, argv, "upper_limb_l");
     ros::NodeHandle nh;
     motor_feedback_pub = nh.advertise<std_msgs::Float32MultiArray>("motor_feedback_l", 1);
     motor_status_pub = nh.advertise<std_msgs::Int32>("motor_status_l", 1);
