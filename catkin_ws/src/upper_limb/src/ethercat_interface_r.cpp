@@ -1,49 +1,5 @@
-/**
- * 控制右臂. 
- * 虽然右臂有9个电机，但是颈部的2个电机控制不了，会抖动
-*/
-#include <ros/ros.h>
-#include <std_msgs/String.h>
-#include <std_msgs/Float32MultiArray.h>
-#include <std_msgs/Float32.h>
-#include <std_msgs/Int32.h>  // 用于接收 /action 的整型消息
-#include <sensor_msgs/JointState.h>
-#include <stdbool.h>
-#include "ecrt.h"
-#include <stdio.h>
-#include <unistd.h>
-#include <sched.h>
-#include <sys/mman.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/resource.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <malloc.h>
-#include <inttypes.h>
-#include <math.h>  // 包含数学库
+#include "ethercat_interface_r.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <string.h>
-#include <pthread.h>
-#include <thread>
-#include <unistd.h>
-
-#define THREAD_PRIORITY 60  // Priority for the real-time thread
-#define PI 3.1415926
-
-static unsigned int counter = 0;
-static unsigned int sync_ref_counter = 0;
-static unsigned int sync_ref_counter2 = 0;
-static struct timespec apptime;
-
-// 同步周期时钟配置,8毫秒下发周期控制
-#define TASK_FREQUENCY 125 /* Hz */
 #define CLOCK_TO_USE CLOCK_REALTIME
 #define TIMEOUT_CLEAR_ERROR (1 * TASK_FREQUENCY) /* clearing error timeout */
 // 时间控制相关函数
@@ -53,24 +9,23 @@ static struct timespec apptime;
                        (B).tv_nsec - (A).tv_nsec)
 #define TIMESPEC2NS(T) ((uint64_t)(T).tv_sec * NSEC_PER_SEC + (T).tv_nsec)
 const struct timespec cycletime = {0, PERIOD_NS};
+static struct timespec apptime;
 
-#define E_START 2
-#define E_STOP 8
+static unsigned int sync_ref_counter = 0;
 
-
-// EtherCAT
 static ec_master_t* master = NULL;
 static ec_master_state_t master_state = {};
 static ec_domain_t* domain1 = NULL;
 static ec_domain_state_t domain1_state = {};
-static uint8_t* domain1_pd = NULL;
+uint8_t* domain1_pd = NULL;
 
-#define VidPid 0x00522227, 0x00009253
-
-bool running_thread = true;
+bool running_thread = false;
 bool isAllEnabled = false;
+bool isAllReachedDefault = false;
+int action_value_ = 0;
+JointData rightArm;
 
-// 伺服电机所有属性结构体,用于读取值的位置指针
+// ethercat 电机内部功能所对应的地址偏移量
 static struct
 {
   unsigned int ctrl_word;
@@ -102,6 +57,7 @@ static struct
   unsigned int mode_Of_Operation_dsiplay;
 } offset[E_STOP + 1];
 
+// 电机属性
 struct {
   int defaultPosition = 0;
   int target_postion = 0;
@@ -116,6 +72,7 @@ struct {
   int act_wrong = 0;
 } motorData[E_STOP + 1];
 
+// ethercat 总线的PDO映射表,注册到主栈中
 const static ec_pdo_entry_reg_t domain1_regs[] = {
 #if E_START <= 0 && E_STOP >= 0
     {0, 0, VidPid, 0x6040, 0, &offset[0].ctrl_word},
@@ -243,7 +200,6 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     ////
     {}};
 
-
 // 伺服电机的PDO映射参数
 ec_pdo_entry_info_t Igh_pdo_entries[] = {
     {0x6040, 0x00, 16},
@@ -264,41 +220,13 @@ ec_pdo_info_t Igh_pdos[] = {
     {0x1a00, 5, Igh_pdo_entries + 4},
 };
 
+// IGH 将这个参数写入到电机中去
 ec_sync_info_t Igh_syncs[] = {
     {0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE},
     {1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE},
     {2, EC_DIR_OUTPUT, 1, Igh_pdos + 0, EC_WD_ENABLE},
     {3, EC_DIR_INPUT, 1, Igh_pdos + 1, EC_WD_DISABLE},
     {0xFF}};
-
-ros::Publisher motor_feedback_pub;  // 250Hz 的 Publisher
-// 创建一个订阅者，订阅 /action 话题
-ros::Subscriber motor_action_sub;
-ros::Timer motor_feedback_timer;
-ros::Subscriber motor_command_sub;    
-
-// 全局变量，用于存储 /action 的值
-int action_value = 0;
-
-// /action 话题的回调函数
-void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
-  action_value = msg->data;  // 更新 action_value
-  ROS_INFO("Received action value: %d", action_value);
-
-  if (action_value == 1) {
-  }
-}
-
-void motor_command_callback(const std_msgs::Float32MultiArray::ConstPtr& cmd_msg) {
-}
-
-void motor_feedback_timer_callback(const ros::TimerEvent& event) {
-  std_msgs::Float32MultiArray array_msg;
-  array_msg.data.resize(36);
-  motor_feedback_pub.publish(array_msg);
-}
-
-/*****************************************************************************/
 
 struct timespec timespec_add(struct timespec time1, struct timespec time2) {
   struct timespec result;
@@ -315,17 +243,6 @@ struct timespec timespec_add(struct timespec time1, struct timespec time2) {
 }
 
 /*****************************************************************************/
-
-void check_domain1_state(void) {
-  ec_domain_state_t ds;
-  ecrt_domain_state(domain1, &ds);
-  if (ds.working_counter != domain1_state.working_counter)
-    printf("Domain1: WC %u.\n", ds.working_counter);
-  if (ds.wc_state != domain1_state.wc_state)
-    printf("Domain1: State %u.\n", ds.wc_state);
-
-  domain1_state = ds;
-}
 
 void Igh_rechekTime() {
   clock_gettime(CLOCK_TO_USE, &apptime);
@@ -344,12 +261,9 @@ void Igh_rechekTime() {
   ecrt_master_send(master);
 }
 
-
-void readWriteStatus() {
+void toEnable() {
   int i2;
   isAllEnabled = true;
-  ecrt_master_receive(master);
-  ecrt_domain_process(domain1);
 
   for (i2 = E_START; i2 <= E_STOP; i2++) {
     uint16_t ss = EC_READ_U16(domain1_pd + offset[i2].status_word);
@@ -371,17 +285,14 @@ void readWriteStatus() {
         if ((ss & 0xFF) == 0x50) {
           EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x06);
         } else if ((ss & 0xFF) == 0x31) {
-          motorData[i2].last_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
           motorData[i2].target_postion = motorData[i2].last_position;
           EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].last_position);
           EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x07);
         } else if ((ss & 0xFF) == 0x21) {
-          motorData[i2].last_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
           motorData[i2].target_postion = motorData[i2].last_position;
           EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].last_position);
           EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x07);
         } else if ((ss & 0xFF) == 0x33) {
-          motorData[i2].last_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
           motorData[i2].target_postion = motorData[i2].last_position;
           EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].last_position);
           EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x0F);
@@ -403,19 +314,12 @@ void readWriteStatus() {
   }
 }
 
-void readWritePDO() {
-  int i2 = 0;
-
-  ecrt_master_receive(master);
-  ecrt_domain_process(domain1);
-
-  for (i2 = E_START; i2 <= E_STOP; i2++) {
+void toDefaultPositions() {
+  isAllReachedDefault = true;
+  for (int i2 = E_START; i2 <= E_STOP; i2++) {
     uint16_t ss = EC_READ_U16(domain1_pd + offset[i2].status_word);
     if ((ss & 0xFF) == 0x37) {
-      motorData[i2].act_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
       motorData[i2].last_position = motorData[i2].act_position;
-      motorData[i2].act_velocity = EC_READ_S32(domain1_pd + offset[i2].act_velocity);
-      motorData[i2].act_torque = EC_READ_S16(domain1_pd + offset[i2].act_torque);
 
       if (motorData[i2].isInitedToDefault == false) {
         if (motorData[i2].last_position > motorData[i2].defaultPosition + 80) {
@@ -428,18 +332,41 @@ void readWritePDO() {
         printf("position + %d,  %d to %d  \n", i2, motorData[i2].last_position, motorData[i2].target_postion);
         EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].target_postion);
       } else {
-        printf("isInitedToDefault + %d  \n", i2);
+        // printf("isInitedToDefault + %d  \n", i2);
       }
     } else {
       // uint16_t wrong = EC_READ_U16(domain1_pd + offset[i2].status_word);
       printf("wrong status %d  \n", ss);
     }
   }
+
+  // 判断所有电机都使能
+  for (int i2 = E_START; i2 <= E_STOP; i2++) {
+    isAllReachedDefault = (isAllReachedDefault && motorData[i2].isInitedToDefault);
+  }  
+}
+
+void toPositions() {
+  if(rightArm.getSize()>0){
+    std::array<float, 9> arr_out;
+    rightArm.dequeue(arr_out);
+    for (int i2 = E_START; i2 <= E_STOP; i2++) {
+      uint16_t ss = EC_READ_U16(domain1_pd + offset[i2].status_word);
+      if ((ss & 0xFF) == 0x37) {
+        motorData[i2].target_postion = (int)arr_out[i2];
+        EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].target_postion);
+      } else {
+        // uint16_t wrong = EC_READ_U16(domain1_pd + offset[i2].status_word);
+        printf("wrong status %d  \n", ss);
+      }
+    }
+  }
 }
 
 // EtherCat线程读写实例
 void Ethercat_syncThread() {
- // if(2>1)return 0;
+  running_thread = true;
+  // if(2>1)return 0;
   struct timespec wakeupTime, time;
   // get current time
   clock_gettime(CLOCK_TO_USE, &wakeupTime);
@@ -447,19 +374,57 @@ void Ethercat_syncThread() {
   while (running_thread) {
     wakeupTime = timespec_add(wakeupTime, cycletime);
     clock_nanosleep(CLOCK_TO_USE, TIMER_ABSTIME, &wakeupTime, NULL);
-
-    if (!isAllEnabled) {
-      readWriteStatus();
-    } 
-    else {
-      readWritePDO();
+    ecrt_master_receive(master);
+    ecrt_domain_process(domain1);
+    for (int i2 = E_START; i2 <= E_STOP; i2++) {
+      motorData[i2].act_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
+      motorData[i2].act_velocity = EC_READ_S32(domain1_pd + offset[i2].act_velocity);
+      motorData[i2].act_torque = EC_READ_S16(domain1_pd + offset[i2].act_torque);
+      rightArm.data[i2 * 3 + 0] = motorData[i2].act_position;
+      rightArm.data[i2 * 3 + 1] = motorData[i2].act_velocity;
+      rightArm.data[i2 * 3 + 2] = motorData[i2].act_torque;
     }
+
+    if (action_value_ == 2) { 
+      if (!isAllEnabled) {
+        rightArm.status = 2;
+        toEnable();
+      } 
+      else{
+        rightArm.status = 202;
+      }
+    }
+    else if(action_value_ == 3){
+      if (!isAllReachedDefault) {
+        rightArm.status = 3;
+        toDefaultPositions();
+      } 
+      else{
+        rightArm.status = 203;
+      }
+    }
+    else if(action_value_ == 4){
+      if (rightArm.getSize()>0) {
+        rightArm.status = 4;
+        toPositions();
+      } 
+      else{
+        rightArm.status = 204;
+      }
+    }    
 
     Igh_rechekTime();
   }
 }
 
+void consoleJoints() {
+  for (int i2 = E_START; i2 <= E_STOP; i2++) {
+    printf("%d \n ", motorData[i2].act_position);
+  }
+}
 
+//TODO
+void consoleQueue(){}
 
 void Igh_master_activate() {
   printf("......Activating master......\n");
@@ -518,9 +483,9 @@ void Igh_init() {
       exit(EXIT_FAILURE);
     }
 
-    ecrt_slave_config_sdo16(sc, 0x6040, 0, 6);  
-    sleep(1);
-    ecrt_slave_config_sdo16(sc, 0x6040, 0, 128);// 清错
+    // ecrt_slave_config_sdo16(sc, 0x6040, 0, 6);
+    // sleep(1);
+    ecrt_slave_config_sdo16(sc, 0x6040, 0, 128);  // 清错
     sleep(1);
 
     ecrt_slave_config_sdo16(sc, 0x1C32, 1, 2);  // set output synchronization triggered by  sync0 event DC mode
@@ -536,32 +501,3 @@ void Igh_init() {
     exit(EXIT_FAILURE);
   }
 }
-
-
-int main(int argc, char** argv) {
-  Igh_init();
-  Igh_master_activate();
-
-  ros::init(argc, argv, "upper_limb");
-  ros::NodeHandle nh;
-  motor_feedback_pub = nh.advertise<std_msgs::Float32MultiArray>("motor_feedback", 1);
-  // 创建一个订阅者，订阅 /action 话题
-  motor_action_sub = nh.subscribe("/motor_action", 1, motor_action_callback);
-  motor_command_sub = nh.subscribe("/motor_command", 1, motor_command_callback);
-  motor_feedback_timer = nh.createTimer(ros::Duration(1.0 / 250.0), motor_feedback_timer_callback);
-
-  // 开启电机通信线程
-  std::thread rcv_thread1 = std::thread(&Ethercat_syncThread);
-
-  ros::spin();
-  ros::shutdown();  
-
-  // 设置退出标志并等待线程结束
-  running_thread = false;
-  // 等待线程结束
-  rcv_thread1.join();
-
-  return 0;
-}
-
-/****************************************************************************/

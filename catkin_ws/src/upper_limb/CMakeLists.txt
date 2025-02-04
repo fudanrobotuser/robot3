@@ -19,18 +19,11 @@ generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(CATKIN_DEPENDS message_runtime std_msgs)
 
-macro(rostutorial T)
-  add_executable(${T} src/${T}.cpp)
-  target_link_libraries(${T} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-  install(TARGETS ${T}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-endmacro()
+add_library(joint_data src/joint_data.cpp)
+add_library(ethercat_interface_r src/ethercat_interface_r.cpp)
 
-
-foreach(dir
-    upper_limb
-    upper_limb2
-    )
-  rostutorial(${dir})
-endforeach()
+add_executable(upper_limb_r src/upper_limb_r.cpp)
+target_link_libraries(upper_limb_r ${catkin_LIBRARIES} ${Boost_LIBRARIES} joint_data ethercat_interface_r)
+install(TARGETS upper_limb_r
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
