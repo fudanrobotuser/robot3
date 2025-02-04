@@ -96,6 +96,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 1, VidPid, 0x6064, 0, &offset[1].act_position},
     {0, 1, VidPid, 0x606c, 0, &offset[1].act_velocity},
     {0, 1, VidPid, 0x6077, 0, &offset[1].act_torque},
+    {0, 2, VidPid, 0x603f, 0, &offset[2].error_code},
     {0, 1, VidPid, 0x6061, 0, &offset[1].mode_Of_Operation_dsiplay},
 #endif
 #if E_START <= 2 && E_STOP >= 2
@@ -108,6 +109,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 2, VidPid, 0x6064, 0, &offset[2].act_position},
     {0, 2, VidPid, 0x606c, 0, &offset[2].act_velocity},
     {0, 2, VidPid, 0x6077, 0, &offset[2].act_torque},
+    {0, 2, VidPid, 0x603f, 0, &offset[2].error_code},
     {0, 2, VidPid, 0x6061, 0, &offset[2].mode_Of_Operation_dsiplay},
 #endif
 #if E_START <= 3 && E_STOP >= 3
@@ -120,6 +122,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 3, VidPid, 0x6064, 0, &offset[3].act_position},
     {0, 3, VidPid, 0x606c, 0, &offset[3].act_velocity},
     {0, 3, VidPid, 0x6077, 0, &offset[3].act_torque},
+    {0, 3, VidPid, 0x603f, 0, &offset[3].error_code},
     {0, 3, VidPid, 0x6061, 0, &offset[3].mode_Of_Operation_dsiplay},
 #endif
 #if E_START <= 4 && E_STOP >= 4
@@ -132,6 +135,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 4, VidPid, 0x6064, 0, &offset[4].act_position},
     {0, 4, VidPid, 0x606c, 0, &offset[4].act_velocity},
     {0, 4, VidPid, 0x6077, 0, &offset[4].act_torque},
+    {0, 4, VidPid, 0x603f, 0, &offset[4].error_code},
     {0, 4, VidPid, 0x6061, 0, &offset[4].mode_Of_Operation_dsiplay},
 #endif
 #if E_START <= 5 && E_STOP >= 5
@@ -144,6 +148,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 5, VidPid, 0x6064, 0, &offset[5].act_position},
     {0, 5, VidPid, 0x606c, 0, &offset[5].act_velocity},
     {0, 5, VidPid, 0x6077, 0, &offset[5].act_torque},
+    {0, 5, VidPid, 0x603f, 0, &offset[5].error_code},
     {0, 5, VidPid, 0x6061, 0, &offset[5].mode_Of_Operation_dsiplay},
 #endif
 #if E_START <= 6 && E_STOP >= 6
@@ -156,6 +161,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 6, VidPid, 0x6064, 0, &offset[6].act_position},
     {0, 6, VidPid, 0x606c, 0, &offset[6].act_velocity},
     {0, 6, VidPid, 0x6077, 0, &offset[6].act_torque},
+    {0, 6, VidPid, 0x603f, 0, &offset[6].error_code},
     {0, 6, VidPid, 0x6061, 0, &offset[6].mode_Of_Operation_dsiplay},
 #endif
 
@@ -169,6 +175,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 7, VidPid, 0x6064, 0, &offset[7].act_position},
     {0, 7, VidPid, 0x606c, 0, &offset[7].act_velocity},
     {0, 7, VidPid, 0x6077, 0, &offset[7].act_torque},
+    {0, 7, VidPid, 0x603f, 0, &offset[7].error_code},
     {0, 7, VidPid, 0x6061, 0, &offset[7].mode_Of_Operation_dsiplay},
 #endif
 
@@ -182,6 +189,7 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {0, 8, VidPid, 0x6064, 0, &offset[8].act_position},
     {0, 8, VidPid, 0x606c, 0, &offset[8].act_velocity},
     {0, 8, VidPid, 0x6077, 0, &offset[8].act_torque},
+    {0, 8, VidPid, 0x603f, 0, &offset[8].error_code},
     {0, 8, VidPid, 0x6061, 0, &offset[8].mode_Of_Operation_dsiplay},
 #endif
 
@@ -211,13 +219,14 @@ ec_pdo_entry_info_t Igh_pdo_entries[] = {
     {0x6064, 0x00, 32},
     {0x606c, 0x00, 32},
     {0x6077, 0x00, 16},
+    {0x603f, 0x00, 16},
     {0x6061, 0x00, 8},
 };
 
 // 伺服电机PDO映射参数的组地址
 ec_pdo_info_t Igh_pdos[] = {
     {0x1600, 4, Igh_pdo_entries + 0},
-    {0x1a00, 5, Igh_pdo_entries + 4},
+    {0x1a00, 6, Igh_pdo_entries + 4},
 };
 
 // IGH 将这个参数写入到电机中去
@@ -335,8 +344,8 @@ void toDefaultPositions() {
         // printf("isInitedToDefault + %d  \n", i2);
       }
     } else {
-      // uint16_t wrong = EC_READ_U16(domain1_pd + offset[i2].status_word);
-      printf("wrong status %d  \n", ss);
+      uint16_t wrong = EC_READ_U16(domain1_pd + offset[i2].error_code);
+      printf("get wrong code:  %d , at joint %d , so the status:  %d   \n", wrong ,i2,ss);
     }
   }
 
@@ -356,8 +365,8 @@ void toPositions() {
         motorData[i2].target_postion = (int)arr_out[i2];
         EC_WRITE_S32(domain1_pd + offset[i2].target_position, motorData[i2].target_postion);
       } else {
-        // uint16_t wrong = EC_READ_U16(domain1_pd + offset[i2].status_word);
-        printf("wrong status %d  \n", ss);
+        uint16_t wrong = EC_READ_U16(domain1_pd + offset[i2].error_code);
+        printf("get wrong code:  %d , at joint %d , so the status:  %d , to postion %d , current postion %d \n", wrong ,i2,ss, motorData[i2].target_postion , motorData[i2].act_position);
       }
     }
   }

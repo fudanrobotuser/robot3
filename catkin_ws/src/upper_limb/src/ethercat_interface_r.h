@@ -16,7 +16,7 @@
 #include <math.h>
 #include "joint_data.h"
 
-#define TASK_FREQUENCY 125 /* Hz */
+#define TASK_FREQUENCY 250 /* Hz */
 #define E_START 2
 #define E_STOP 8
 
