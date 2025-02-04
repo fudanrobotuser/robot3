@@ -21,13 +21,17 @@ catkin_package(CATKIN_DEPENDS message_runtime std_msgs)
 
 add_library(joint_data src/joint_data.cpp)
 add_library(ethercat_interface_r src/ethercat_interface_r.cpp)
+add_library(ethercat_interface_l src/ethercat_interface_l.cpp)
 
 add_executable(upper_limb_r src/upper_limb_r.cpp)
 target_link_libraries(upper_limb_r ${catkin_LIBRARIES} ${Boost_LIBRARIES} joint_data ethercat_interface_r)
 
+add_executable(upper_limb_l src/upper_limb_l.cpp)
+target_link_libraries(upper_limb_l ${catkin_LIBRARIES} ${Boost_LIBRARIES} joint_data ethercat_interface_l)
+
 add_executable(upper_limb_sim src/upper_limb_sim.cpp)
 target_link_libraries(upper_limb_sim ${catkin_LIBRARIES} ${Boost_LIBRARIES} )
 
-install(TARGETS upper_limb_sim upper_limb_r
+install(TARGETS upper_limb_sim upper_limb_r upper_limb_l
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})  
 

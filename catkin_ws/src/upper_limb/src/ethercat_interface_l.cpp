@@ -1,4 +1,4 @@
-#include "ethercat_interface_r.h"
+#include "ethercat_interface_l.h"
 
 #define CLOCK_TO_USE CLOCK_REALTIME
 #define TIMEOUT_CLEAR_ERROR (1 * TASK_FREQUENCY) /* clearing error timeout */
@@ -19,11 +19,7 @@ static ec_domain_t* domain1 = NULL;
 static ec_domain_state_t domain1_state = {};
 uint8_t* domain1_pd = NULL;
 
-bool running_thread = false;
-bool isAllEnabled = false;
-bool isAllReachedDefault = false;
-int action_value_ = 0;
-JointData rightArm;
+
 
 // ethercat 电机内部功能所对应的地址偏移量
 static struct
@@ -356,9 +352,9 @@ void toDefaultPositions() {
 }
 
 void toPositions() {
-  if(rightArm.getSize()>0){
+  if(leftArm.getSize()>0){
     std::array<float, 9> arr_out;
-    rightArm.dequeue(arr_out);
+    leftArm.dequeue(arr_out);
     for (int i2 = E_START; i2 <= E_STOP; i2++) {
       uint16_t ss = EC_READ_U16(domain1_pd + offset[i2].status_word);
       if ((ss & 0xFF) == 0x37) {
@@ -389,36 +385,36 @@ void Ethercat_syncThread() {
       motorData[i2].act_position = EC_READ_S32(domain1_pd + offset[i2].act_position);
       motorData[i2].act_velocity = EC_READ_S32(domain1_pd + offset[i2].act_velocity);
       motorData[i2].act_torque = EC_READ_S16(domain1_pd + offset[i2].act_torque);
-      rightArm.data[i2 * 3 + 0] = motorData[i2].act_position;
-      rightArm.data[i2 * 3 + 1] = motorData[i2].act_velocity;
-      rightArm.data[i2 * 3 + 2] = motorData[i2].act_torque;
+      leftArm.data[i2 * 3 + 0] = motorData[i2].act_position;
+      leftArm.data[i2 * 3 + 1] = motorData[i2].act_velocity;
+      leftArm.data[i2 * 3 + 2] = motorData[i2].act_torque;
     }
 
     if (action_value_ == 2) { 
       if (!isAllEnabled) {
-        rightArm.status = 2;
+        leftArm.status = 2;
         toEnable();
       } 
       else{
-        rightArm.status = 202;
+        leftArm.status = 202;
       }
     }
     else if(action_value_ == 3){
       if (!isAllReachedDefault) {
-        rightArm.status = 3;
+        leftArm.status = 3;
         toDefaultPositions();
       } 
       else{
-        rightArm.status = 203;
+        leftArm.status = 203;
       }
     }
     else if(action_value_ == 4){
-      if (rightArm.getSize()>0) {
-        rightArm.status = 4;
+      if (leftArm.getSize()>0) {
+        leftArm.status = 4;
         toPositions();
       } 
       else{
-        rightArm.status = 204;
+        leftArm.status = 204;
       }
     }    
 

@@ -1,5 +1,5 @@
-#ifndef ETHERCAT_INTERFACE_R_H
-#define ETHERCAT_INTERFACE_R_H
+#ifndef ETHERCAT_INTERFACE_L_H
+#define ETHERCAT_INTERFACE_L_H
 
 #include "ecrt.h"
 #include <stdio.h>
@@ -17,17 +17,17 @@
 #include "joint_data.h"
 
 #define TASK_FREQUENCY 125 /* Hz */
-#define E_START 2
-#define E_STOP 8
-#define E_MASTER 0
+#define E_START 0
+#define E_STOP 6
+#define E_MASTER 1
 
 #define VidPid 0x00522227, 0x00009253
 
-extern bool running_thread;
-extern bool isAllEnabled;
-extern int action_value_;
-extern uint8_t* domain1_pd;
-extern JointData rightArm;
+bool running_thread = false;
+bool isAllEnabled = false;
+bool isAllReachedDefault = false;
+int action_value_ = 0;
+JointData leftArm;
 
 void Ethercat_syncThread();
 void Igh_master_activate();
@@ -40,4 +40,4 @@ void consoleQueue();
 void Igh_rechekTime();
 struct timespec timespec_add(struct timespec time1, struct timespec time2);
 
-#endif // ETHERCAT_INTERFACE_R_H
+#endif // ETHERCAT_INTERFACE_L_H
