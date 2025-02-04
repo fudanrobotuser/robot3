@@ -32,6 +32,9 @@ target_link_libraries(upper_limb_l ${catkin_LIBRARIES} ${Boost_LIBRARIES} joint_
 add_executable(upper_limb_sim src/upper_limb_sim.cpp)
 target_link_libraries(upper_limb_sim ${catkin_LIBRARIES} ${Boost_LIBRARIES} )
 
-install(TARGETS upper_limb_sim upper_limb_r upper_limb_l
+add_executable(upper_limb_csv src/upper_limb_csv.cpp)
+target_link_libraries(upper_limb_csv ${catkin_LIBRARIES} ${Boost_LIBRARIES} )
+
+install(TARGETS upper_limb_sim upper_limb_r upper_limb_l upper_limb_csv
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})  
 

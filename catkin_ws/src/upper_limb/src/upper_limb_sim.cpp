@@ -1,3 +1,6 @@
+/**
+ * 该程序可以让双臂在当前姿态下，慢慢运动，每个电机都会跑 
+*/
 #include <ros/ros.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <vector>
