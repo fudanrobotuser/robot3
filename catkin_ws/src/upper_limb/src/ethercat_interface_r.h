@@ -35,6 +35,7 @@ void Igh_init();
 void toDefaultPositions();
 void toPositionsByQueue();
 void toEnable();
+void toDisable();
 void consoleJoints();
 void consoleQueue();
 void Igh_rechekTime();

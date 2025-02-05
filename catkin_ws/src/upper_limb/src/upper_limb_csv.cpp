@@ -15,14 +15,20 @@ bool is_playing = false;  // 标记是否正在播放数据
 void actionCallback(const std_msgs::Int32::ConstPtr& msg) {
   if (msg->data == 1) {
     // 读取CSV文件
-    std::ifstream file("/home/fudanrobotuser/steps.csv");
+    std::ifstream file("/root/a.csv");
     if (!file.is_open()) {
       ROS_ERROR("Failed to open CSV file.");
       return;
     }
 
     std::string line;
+    bool is_first_line = true;  // 标记是否为第一行（表头）
     while (std::getline(file, line)) {
+      if (is_first_line) {
+        is_first_line = false;  // 跳过第一行（表头）
+        continue;
+      }
+
       std::vector<float> row;
       std::stringstream ss(line);
       std::string cell;
@@ -41,7 +47,43 @@ void actionCallback(const std_msgs::Int32::ConstPtr& msg) {
 
     file.close();
     ROS_INFO("CSV file loaded with %lu rows.", data_queue.size());
-  } else if (msg->data == 2) {
+  }
+  else if (msg->data == 11) {
+    // 读取CSV文件
+    std::ifstream file("/root/salute.csv");
+    if (!file.is_open()) {
+      ROS_ERROR("Failed to open CSV file.");
+      return;
+    }
+
+    std::string line;
+    bool is_first_line = true;  // 标记是否为第一行（表头）
+    while (std::getline(file, line)) {
+      if (is_first_line) {
+        is_first_line = false;  // 跳过第一行（表头）
+        continue;
+      }
+
+      std::vector<float> row;
+      std::stringstream ss(line);
+      std::string cell;
+
+      // 跳过第一列（时间）
+      std::getline(ss, cell, ',');
+
+      // 读取剩余的16列数据
+      while (std::getline(ss, cell, ',')) {
+        row.push_back(std::stof(cell));
+      }
+
+      // 将数据存入队列
+      data_queue.push(row);
+    }
+
+    file.close();
+    ROS_INFO("CSV file loaded with %lu rows.", data_queue.size());
+  }
+   else if (msg->data == 2) {
     // 开始播放数据
     is_playing = true;
     ROS_INFO("Start playing data.");
@@ -81,8 +123,8 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh;
 
   // 初始化发布者和订阅者
-  motor_pub_r = nh.advertise<std_msgs::Float32MultiArray>("/motor_command_rr", 1);
-  motor_pub_l = nh.advertise<std_msgs::Float32MultiArray>("/motor_command_ll", 1);
+  motor_pub_r = nh.advertise<std_msgs::Float32MultiArray>("/motor_command_r", 1);
+  motor_pub_l = nh.advertise<std_msgs::Float32MultiArray>("/motor_command_l", 1);
   ros::Subscriber action_sub = nh.subscribe("/motor_sim_action", 1, actionCallback);
 
   // 创建定时器，周期性调用 publishData，每次间隔 0.008 秒

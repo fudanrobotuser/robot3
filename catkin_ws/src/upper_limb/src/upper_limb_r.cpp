@@ -26,6 +26,9 @@ void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
     else if (action_value == 3 ) {
         action_value_ = action_value;
     }     
+    else if (action_value == 5 ) {
+        action_value_ = action_value;
+    }      
     else if(action_value == 10){
         consoleJoints();
     }

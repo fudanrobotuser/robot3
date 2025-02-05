@@ -26,6 +26,9 @@ void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
     else if (action_value == 3 ) {
         action_value_ = action_value;
     }     
+    else if (action_value == 5 ) {
+        action_value_ = action_value;
+    }      
     else if(action_value == 10){
         consoleJoints();
     }
@@ -37,13 +40,13 @@ void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
 }
 
 void motor_command_callback(const std_msgs::Float32MultiArray::ConstPtr& cmd_msg) {
-    if (cmd_msg->data.size() != 9) {
-        ROS_ERROR("Received invalid motor command, expected length: 9, received: %lu", cmd_msg->data.size());
+    if (cmd_msg->data.size() != 7) {
+        ROS_ERROR("Received invalid motor command, expected length: 7, received: %lu", cmd_msg->data.size());
         return;
     }
 
     std::array<float, 9> motor_data;
-    for (size_t i = 0; i < 9; ++i) {
+    for (size_t i = 0; i < 7; ++i) {
         motor_data[i] = cmd_msg->data[i];
     }
 

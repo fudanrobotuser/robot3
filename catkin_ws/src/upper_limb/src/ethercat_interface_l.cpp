@@ -67,6 +67,8 @@ struct {
   int act_wrong = 0;
 } motorData[E_STOP + 1];
 
+
+
 // ethercat 总线的PDO映射表,注册到主栈中
 const static ec_pdo_entry_reg_t domain1_regs[] = {
 #if E_START <= 0 && E_STOP >= 0
@@ -265,6 +267,31 @@ void Igh_rechekTime() {
   ecrt_master_send(master);
 }
 
+void toDisable(){
+  for (int i2 = E_START; i2 <= E_STOP; i2++) {
+    uint16_t ss = EC_READ_U16(domain1_pd + offset[i2].status_word);
+    if (motorData[i2].statusOld != ss) {
+      if ((ss == 0x1237 && motorData[i2].statusOld == 0x0237) || (ss == 0x0237 && motorData[i2].statusOld == 0x1237)) {
+        // NO PRINT
+      } else {
+        printf("status %d : 0x%04x to 0x%04x  \n", i2, motorData[i2].statusOld, ss);
+      }
+
+      motorData[i2].statusOld = ss;
+      motorData[i2].statusDeCount = 5;
+    }    
+    if ((ss & 0xFF) == 0x37) {
+      EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x07);
+    }
+    else if ((ss & 0xFF) == 0x33) {
+      EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x06);
+    }  
+    else if ((ss & 0xFF) == 0x21) {
+      EC_WRITE_U16(domain1_pd + offset[i2].ctrl_word, 0x06);
+    }  
+  }
+}
+
 void toEnable() {
   int i2;
   isAllEnabled = true;
@@ -326,10 +353,10 @@ void toDefaultPositions() {
       motorData[i2].last_position = motorData[i2].act_position;
 
       if (motorData[i2].isInitedToDefault == false) {
-        if (motorData[i2].last_position > motorData[i2].defaultPosition + 80) {
-          motorData[i2].target_postion = motorData[i2].target_postion - 120;
-        } else if (motorData[i2].last_position < motorData[i2].defaultPosition - 80) {
-          motorData[i2].target_postion = motorData[i2].target_postion + 120;
+        if (motorData[i2].last_position > motorData[i2].defaultPosition + 80*3) {
+          motorData[i2].target_postion = motorData[i2].target_postion - 120*3;
+        } else if (motorData[i2].last_position < motorData[i2].defaultPosition - 80*3) {
+          motorData[i2].target_postion = motorData[i2].target_postion + 120*3;
         } else {
           motorData[i2].isInitedToDefault = true;
         }
@@ -415,7 +442,12 @@ void Ethercat_syncThread() {
       else{
         leftArm.status = 204;
       }
-    }    
+    } 
+    else if(action_value_ == 5){
+      printf("555 \n");
+      toDisable();
+      leftArm.status = 5;
+    }         
 
     Igh_rechekTime();
   }
@@ -440,6 +472,14 @@ void Igh_master_activate() {
   }
 
   printf("......Master  Activated.......\n");
+
+  motorData[0].defaultPosition = 105534;
+motorData[1].defaultPosition = -22613;
+motorData[2].defaultPosition = 2463803;
+motorData[3].defaultPosition = -232823;
+motorData[4].defaultPosition = -338509;
+motorData[5].defaultPosition = -149367;
+motorData[6].defaultPosition = -311665;
 }
 
 /****************************************************************************/
