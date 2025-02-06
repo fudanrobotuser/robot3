@@ -11,78 +11,58 @@ ros::Publisher motor_pub_l;
 std::queue<std::vector<float>> data_queue;  // 用于存储从CSV文件中读取的数据
 bool is_playing = false;  // 标记是否正在播放数据
 
+void loadCSV(const std::string& file_path) {
+  std::ifstream file(file_path);
+  if (!file.is_open()) {
+    ROS_ERROR("Failed to open CSV file: %s", file_path.c_str());
+    return;
+  }
+
+  std::string line;
+  bool is_first_line = true;  // Skip the first line (header)
+  while (std::getline(file, line)) {
+    if (is_first_line) {
+      is_first_line = false;  // Skip the header
+      continue;
+    }
+
+    std::vector<float> row;
+    std::stringstream ss(line);
+    std::string cell;
+
+    // Skip the first column (time)
+    std::getline(ss, cell, ',');
+
+    // Read the remaining 16 columns
+    while (std::getline(ss, cell, ',')) {
+      row.push_back(std::stof(cell));
+    }
+
+    // Store the row in the queue
+    data_queue.push(row);
+  }
+
+  file.close();
+  ROS_INFO("CSV file loaded with %lu rows.", data_queue.size());
+}
+
 // 回调函数，用于处理 /motor_sim_action 的消息
 void actionCallback(const std_msgs::Int32::ConstPtr& msg) {
   if (msg->data == 1) {
-    // 读取CSV文件
-    std::ifstream file("/root/a.csv");
-    if (!file.is_open()) {
-      ROS_ERROR("Failed to open CSV file.");
-      return;
-    }
-
-    std::string line;
-    bool is_first_line = true;  // 标记是否为第一行（表头）
-    while (std::getline(file, line)) {
-      if (is_first_line) {
-        is_first_line = false;  // 跳过第一行（表头）
-        continue;
-      }
-
-      std::vector<float> row;
-      std::stringstream ss(line);
-      std::string cell;
-
-      // 跳过第一列（时间）
-      std::getline(ss, cell, ',');
-
-      // 读取剩余的16列数据
-      while (std::getline(ss, cell, ',')) {
-        row.push_back(std::stof(cell));
-      }
-
-      // 将数据存入队列
-      data_queue.push(row);
-    }
-
-    file.close();
-    ROS_INFO("CSV file loaded with %lu rows.", data_queue.size());
+    loadCSV("/root/a.csv");
   }
   else if (msg->data == 11) {
-    // 读取CSV文件
-    std::ifstream file("/root/salute.csv");
-    if (!file.is_open()) {
-      ROS_ERROR("Failed to open CSV file.");
-      return;
-    }
-
-    std::string line;
-    bool is_first_line = true;  // 标记是否为第一行（表头）
-    while (std::getline(file, line)) {
-      if (is_first_line) {
-        is_first_line = false;  // 跳过第一行（表头）
-        continue;
-      }
-
-      std::vector<float> row;
-      std::stringstream ss(line);
-      std::string cell;
-
-      // 跳过第一列（时间）
-      std::getline(ss, cell, ',');
-
-      // 读取剩余的16列数据
-      while (std::getline(ss, cell, ',')) {
-        row.push_back(std::stof(cell));
-      }
-
-      // 将数据存入队列
-      data_queue.push(row);
-    }
-
-    file.close();
-    ROS_INFO("CSV file loaded with %lu rows.", data_queue.size());
+    loadCSV("/root/salute.csv");
   }
+  else if (msg->data == 12) {
+    loadCSV("/root/pointTo.csv");
+  }
+  else if (msg->data == 13) {
+    loadCSV("/root/waveHand.csv");
+  }
+  else if (msg->data == 13) {
+    loadCSV("/root/shakeHand.csv");
+  }  
    else if (msg->data == 2) {
     // 开始播放数据
     is_playing = true;

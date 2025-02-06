@@ -60,8 +60,8 @@ with open('salute.csv', 'w') as file:
             row.append(str(int(data)))  # 转换为整数并加入当前行
         file.write(",".join(row) + "\n")  # 将当前行写入 CSV 文件，并用逗号分隔
 
-    # 写入目标点3保持100步
-    for i in range(100):
+    # 写入目标点3保持300步
+    for i in range(300):
         row = [str(i + num_steps_1 + num_steps_2 + num_steps_3 + num_steps_3 + num_steps_2 + num_steps_1 + 1)]
         for ii in range(16):
             row.append(str(int(target_state_3[ii])))  # 保持目标3的位置
