@@ -474,6 +474,16 @@ void Igh_master_activate() {
   }
 
   printf("......Master  Activated.......\n");
+
+
+
+motorData[2].defaultPosition = 4575;
+motorData[3].defaultPosition =  -38361;
+motorData[4].defaultPosition = -1466537;
+motorData[5].defaultPosition = 120834;
+motorData[6].defaultPosition =  1472626;
+motorData[7].defaultPosition = 88657;
+motorData[8].defaultPosition = -61876;
 }
 
 /****************************************************************************/

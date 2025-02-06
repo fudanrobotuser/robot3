@@ -444,9 +444,13 @@ void Ethercat_syncThread() {
       }
     } 
     else if(action_value_ == 5){
-      printf("555 \n");
       toDisable();
       leftArm.status = 5;
+    }    
+    else if(action_value_ == 6){
+      for (int i2 = E_START; i2 <= E_STOP; i2++) {
+        motorData[i2].isInitedToDefault = false;
+      }
     }         
 
     Igh_rechekTime();
@@ -473,13 +477,13 @@ void Igh_master_activate() {
 
   printf("......Master  Activated.......\n");
 
-  motorData[0].defaultPosition = 105534;
-motorData[1].defaultPosition = -22613;
-motorData[2].defaultPosition = 2463803;
-motorData[3].defaultPosition = -232823;
-motorData[4].defaultPosition = -338509;
-motorData[5].defaultPosition = -149367;
-motorData[6].defaultPosition = -311665;
+  motorData[0].defaultPosition = -10608;
+motorData[1].defaultPosition = 13396;
+motorData[2].defaultPosition = 3873827;
+motorData[3].defaultPosition =  -308951;
+motorData[4].defaultPosition = -2219672;
+motorData[5].defaultPosition = 473027;
+motorData[6].defaultPosition = -13427;
 }
 
 /****************************************************************************/

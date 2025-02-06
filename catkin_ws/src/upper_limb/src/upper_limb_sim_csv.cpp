@@ -49,19 +49,19 @@ void loadCSV(const std::string& file_path) {
 // 回调函数，用于处理 /motor_sim_action 的消息
 void actionCallback(const std_msgs::Int32::ConstPtr& msg) {
   if (msg->data == 1) {
-    loadCSV("/root/a.csv");
+    loadCSV("/root/csv/a.csv");
   }
   else if (msg->data == 11) {
-    loadCSV("/root/salute.csv");
+    loadCSV("/root/csv/salute.csv");
   }
   else if (msg->data == 12) {
-    loadCSV("/root/pointTo.csv");
+    loadCSV("/root/csv/pointTo.csv");
   }
   else if (msg->data == 13) {
-    loadCSV("/root/waveHand.csv");
+    loadCSV("/root/csv/waveHand.csv");
   }
-  else if (msg->data == 13) {
-    loadCSV("/root/shakeHand.csv");
+  else if (msg->data == 14) {
+    loadCSV("/root/csv/shakeHand.csv");
   }  
    else if (msg->data == 2) {
     // 开始播放数据
