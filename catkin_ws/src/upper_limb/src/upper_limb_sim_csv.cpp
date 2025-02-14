@@ -57,6 +57,9 @@ void actionCallback(const std_msgs::Int32::ConstPtr& msg) {
   else if (msg->data == 12) {
     loadCSV("/root/csv/pointTo.csv");
   }
+  else if (msg->data == 122) {
+    loadCSV("/root/csv/pointTo_.csv");
+  }
   else if (msg->data == 13) {
     loadCSV("/root/csv/waveHand.csv");
   }
