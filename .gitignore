@@ -7,3 +7,4 @@ catkin_ws/devel
 catkin_ws/install
 .vscode
 build/
+build2/
