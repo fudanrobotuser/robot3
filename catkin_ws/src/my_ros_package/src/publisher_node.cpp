@@ -46,8 +46,12 @@ void Ethercat_syncThread() {
 // 全局变量，用于存储 /action 的值
 int action_value = 0;
 
+int action_count = 0;
+
 // /action 话题的回调函数
 void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
+
+
   action_value = msg->data;  // 更新 action_value
   ROS_INFO("Received action value: %d", action_value);
 
@@ -138,6 +142,23 @@ void motor_action_callback(const std_msgs::Int32::ConstPtr& msg) {
 }
 
 void motor_command_callback(const std_msgs::Float32MultiArray::ConstPtr& cmd_msg) {
+
+  action_count++;
+
+  // 如果 action_count 可以整除 500，输出当前时间和 action_count
+  if (action_count % 500 == 0) {
+      time_t now = time(NULL);
+      char buffer[80];
+      strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", localtime(&now));
+      printf("Time: %s, action_count: %d\n", buffer, action_count);
+  }
+
+  // 如果 action_count 超过 500 * 60 * 60，重置为 1
+  if (action_count > 500 * 60 * 60) {
+      action_count = 1;
+  }
+
+
   // for (int i = 0; i < 12; i++) {
   // cmd_msg.data[i * 5] = reference.motor_ref[i].target_postion;
   // cmd_msg.data[i * 5 + 1] = reference.motor_ref[i].target_speed;
@@ -321,7 +342,7 @@ int main(int argc, char** argv) {
   // 创建一个订阅者，订阅 /action 话题
   motor_action_sub = nh.subscribe("/motor_action", 1, motor_action_callback);
   motor_command_sub = nh.subscribe("/motor_command", 1, motor_command_callback);
-  motor_feedback_timer = nh.createTimer(ros::Duration(1.0 / 250.0), motor_feedback_timer_callback);
+  motor_feedback_timer = nh.createTimer(ros::Duration(1.0 / 500.0), motor_feedback_timer_callback);
 
   ros::spin();
   ros::shutdown();
